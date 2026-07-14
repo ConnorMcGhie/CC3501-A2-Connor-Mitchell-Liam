@@ -51,6 +51,7 @@ if(CrossCompiling)
         PUBLIC
         src/main.cpp
         src/drivers/logging/logging.cpp
+        
     )
     target_include_directories(CC3501_A2_CML
         PUBLIC 
@@ -96,6 +97,11 @@ else()
         PUBLIC
         src/main.cpp
         src/drivers/logging/logging.cpp
+        src/drivers/HTU21D/HTU21D.cpp
+        src/drivers/BH1750FVI-TR/BH1750FVI-TR.cpp
+        src/drivers/TF-015/TF-015.cpp
+        src/drivers/RN4871/RN4871.cpp
+        src/drivers/soil_moisture/soil_moisture.cpp
         tests/mocks/pico/stdlib.cpp
         tests/mocks/pico/time.cpp
         tests/mocks/hardware/gpio.cpp

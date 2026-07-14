@@ -1,6 +1,6 @@
 # Starter code for CC3501 labs
 
-This is intended as a starting point for CC3501 students to build their own code for labs. The repository contains:
+ is intended as a starting point for CC3501 students to build their own code for labs. The repository contains:
 
 1. Preconfigured `CMakeLists.txt` that supports building embedded code for the target as well as native Windows code for a test harness.
 2. Very minimal example for how to interact with WS2812 addressable LEDs (plus minimal example of native mock for testing purposes).

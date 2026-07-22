@@ -3,12 +3,37 @@
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
 #include "hardware/i2c.h"
-
+ 
 #include "WS2812.pio.h"
 #include "board.h"
 #include "drivers/logging/logging.h"
 #include "drivers/leds/leds.h"
 #include "drivers/HTU21D/HTU21D.h"
+#include "drivers/BH1750FVI-TR/BH1750FVI-TR.h"
+
+namespace {
+// Arbitrary demo-only scale for the light gradient LED - not a real
+// "enough light for a plant" threshold, just a range that gives a
+// visible red->green sweep under normal indoor lighting for this test.
+constexpr float kDemoMinLux = 0.0f;
+constexpr float kDemoMaxLux = 1000.0f;
+ 
+// Maps a lux reading onto a red (dark) -> green (bright) gradient by
+// interpolating hue between 0 (red) and 120 (green) in HSV space -
+// smoother/more intuitive than a linear RGB blend.
+HSV luxToGradient(float lux)
+{
+    float fraction = (lux - kDemoMinLux) / (kDemoMaxLux - kDemoMinLux);
+    if (fraction < 0.0f) fraction = 0.0f;
+    if (fraction > 1.0f) fraction = 1.0f;
+ 
+    HSV colour;
+    colour.hue = static_cast<uint16_t>(fraction * 120.0f);
+    colour.sat = 255;
+    colour.val = 255;
+    return colour;
+}
+}  // namespace
 
 int main()
 {
@@ -42,11 +67,15 @@ int main()
     // address fault).
     HTU21D htu21d(I2C_PORT);
     bool htuOk = htu21d.init();
-
     leds.set(0, htuOk ? Colours::GREEN : Colours::RED);
-    leds.show();
-
     printf("HTU21D init: %s\n", htuOk ? "OK" : "FAILED");
+
+    // --- BH1750 init test ---
+    BH1750 bh1750(I2C_PORT);
+    bool bh1750Ok = bh1750.init();
+    printf("BH1750 init: %s\n", bh1750Ok ? "OK" : "FAILED");
+ 
+    leds.show();
 
     // --- Continuous readout for verifying actual values over PuTTY ---
     while (true) {
@@ -55,14 +84,29 @@ int main()
             float humidityRH = 0.0f;
             bool tempOk = htu21d.readTemperature(tempC);
             bool humOk  = htu21d.readHumidity(humidityRH);
-
+ 
             if (tempOk && humOk) {
                 printf("Temp: %.2f C   Humidity: %.2f %%RH\n", tempC, humidityRH);
             } else {
                 printf("HTU21D read failed\n");
             }
         }
-        sleep_ms(1000);
+ 
+        if (bh1750Ok) {
+            float lux = 0.0f;
+            if (bh1750.readLux(lux)) {
+                printf("Light: %.1f lx\n", lux);
+ 
+                // LED 1: arbitrary demo gradient, red (dark) -> green
+                // (bright). Not a real plant-appropriate-light judgement -
+                // that logic belongs in a higher-level layer later.
+                leds.set_hsv(1, luxToGradient(lux));
+                leds.show();
+            } else {
+                printf("BH1750 read failed\n");
+            }
+        }
+ 
     }
     ///////////////////////////////////////////////////////////////////////
 }

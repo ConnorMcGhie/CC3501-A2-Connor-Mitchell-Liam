@@ -102,6 +102,7 @@ else()
         src/drivers/TF-015/TF-015.cpp
         src/drivers/RN4871/RN4871.cpp
         src/drivers/soil_moisture/soil_moisture.cpp
+        src/drivers/leds/leds.cpp
         tests/mocks/pico/stdlib.cpp
         tests/mocks/pico/time.cpp
         tests/mocks/hardware/gpio.cpp

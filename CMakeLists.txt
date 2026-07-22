@@ -51,6 +51,12 @@ if(CrossCompiling)
         PUBLIC
         src/main.cpp
         src/drivers/logging/logging.cpp
+        src/drivers/HTU21D/HTU21D.cpp
+        src/drivers/BH1750FVI-TR/BH1750FVI-TR.cpp
+        src/drivers/TF-015/TF-015.cpp
+        src/drivers/RN4871/RN4871.cpp
+        src/drivers/soil_moisture_breakout_board/soil_moisture_breakout_board.cpp
+        src/drivers/leds/leds.cpp
         
     )
     target_include_directories(CC3501_A2_CML
@@ -63,7 +69,7 @@ if(CrossCompiling)
 
     # select UART for standard IO
     pico_enable_stdio_uart(CC3501_A2_CML 1)
-    pico_enable_stdio_usb(CC3501_A2_CML 0)
+    pico_enable_stdio_usb(CC3501_A2_CML 1)
 
     # compile the PIO file
     pico_generate_pio_header(CC3501_A2_CML ${CMAKE_CURRENT_LIST_DIR}/src/drivers/WS2812/WS2812.pio)
@@ -101,7 +107,7 @@ else()
         src/drivers/BH1750FVI-TR/BH1750FVI-TR.cpp
         src/drivers/TF-015/TF-015.cpp
         src/drivers/RN4871/RN4871.cpp
-        src/drivers/soil_moisture/soil_moisture.cpp
+        src/drivers/soil_moisture/soil_moisture_breakout_board.cpp
         src/drivers/leds/leds.cpp
         tests/mocks/pico/stdlib.cpp
         tests/mocks/pico/time.cpp

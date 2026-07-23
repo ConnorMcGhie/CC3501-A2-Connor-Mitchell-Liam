@@ -16,8 +16,8 @@
 #define SOIL_ADC_CHANNEL 0
 #define ADC_REF_VOLTAGE 3.3f
 #define ADC_MAX_COUNTS 4095.0f // 12-bit ADC
-#define SOIL_DRY_RAW_DEFAULT 3000 // Replace with own recorded values after
-#define SOIL_WET_RAW_DEFAULT 1300 // Replace with own recorded values after 
+#define SOIL_DRY_RAW_DEFAULT 3340 // Fully dry recorded value
+#define SOIL_WET_RAW_DEFAULT 1230 // Fully wet recorded value 
 #define SENSOR_READ_INTERVAL_MS 2000 // Sensor reads every 2 seconds
 #define SOIL_POWER_GPIO 25 // GPIO pin to control power to the soil moisture sensor 
 #define SOIL_POWER_STABILIZE_MS 100 // Time to wait for the sensor to stabilise after powering on

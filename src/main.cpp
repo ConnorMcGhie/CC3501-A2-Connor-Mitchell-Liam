@@ -118,8 +118,8 @@ int main() {
 
     soil_moisture_init(); // Initialize the soil moisture sensor
 
-    // Once the raw dry/wet values are known, fill this in:
-    // soil_moisture_calibrate(/*dry_raw=*/3050, /*wet_raw=*/1280);
+    // Calibrated using measured readings: dry = 3340, wet = 1230
+    soil_moisture_calibrate(SOIL_DRY_RAW_DEFAULT, SOIL_WET_RAW_DEFAULT);
 
     printf("Soil Moisture Sensor Test Starting...\n");
 

@@ -86,6 +86,7 @@ if(CrossCompiling)
         hardware_watchdog
         hardware_clocks
         hardware_pwm
+        hardware_adc
     )
 
     pico_add_extra_outputs(CC3501_A2_CML)
@@ -107,7 +108,7 @@ else()
         src/drivers/BH1750FVI-TR/BH1750FVI-TR.cpp
         src/drivers/TF-015/TF-015.cpp
         src/drivers/RN4871/RN4871.cpp
-        src/drivers/soil_moisture/soil_moisture_breakout_board.cpp
+        src/drivers/soil_moisture_breakout_board/soil_moisture_breakout_board.cpp
         src/drivers/leds/leds.cpp
         tests/mocks/pico/stdlib.cpp
         tests/mocks/pico/time.cpp

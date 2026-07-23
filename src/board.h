@@ -19,4 +19,5 @@
 #define SOIL_DRY_RAW_DEFAULT 3000 // Replace with own recorded values after
 #define SOIL_WET_RAW_DEFAULT 1300 // Replace with own recorded values after 
 #define SENSOR_READ_INTERVAL_MS 2000 // Sensor reads every 2 seconds
-
+#define SOIL_POWER_GPIO 25 // GPIO pin to control power to the soil moisture sensor 
+#define SOIL_POWER_STABILIZE_MS 100 // Time to wait for the sensor to stabilise after powering on

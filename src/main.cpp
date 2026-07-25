@@ -14,130 +14,107 @@
 #include "drivers/soil_moisture_breakout_board/soil_moisture_breakout_board.h"
 #include "drivers/TF-015/TF-015.h"
 
-// namespace {
-// // Arbitrary demo-only scale for the light gradient LED - not a real
-// // "enough light for a plant" threshold, just a range that gives a
-// // visible red->green sweep under normal indoor lighting for this test.
-// constexpr float kDemoMinLux = 0.0f;
-// constexpr float kDemoMaxLux = 1000.0f;
+namespace {
+// Demo-only lux->gradient scale (red=dark, green=bright) - not a real
+// "enough light for a plant" threshold, just a visible sweep for testing.
+constexpr float kDemoMinLux = 0.0f;
+constexpr float kDemoMaxLux = 1000.0f;
  
-// // Maps a lux reading onto a red (dark) -> green (bright) gradient by
-// // interpolating hue between 0 (red) and 120 (green) in HSV space -
-// // smoother/more intuitive than a linear RGB blend.
-// HSV luxToGradient(float lux)
-// {
-//     float fraction = (lux - kDemoMinLux) / (kDemoMaxLux - kDemoMinLux);
-//     if (fraction < 0.0f) fraction = 0.0f;
-//     if (fraction > 1.0f) fraction = 1.0f;
+HSV luxToGradient(float lux) {
+    float fraction = (lux - kDemoMinLux) / (kDemoMaxLux - kDemoMinLux);
+    if (fraction < 0.0f) fraction = 0.0f;
+    if (fraction > 1.0f) fraction = 1.0f;
  
-//     HSV colour;
-//     colour.hue = static_cast<uint16_t>(fraction * 120.0f);
-//     colour.sat = 255;
-//     colour.val = 255;
-//     return colour;
-// }
-// }  // namespace
-
-// int main()
-// {
-//     stdio_init_all();
-//     // Give USB CDC time to enumerate so early printf() calls aren't lost
-//     // before PuTTY (or any other terminal) attaches.
-//     sleep_ms(2000);
-
-//     // --- Shared I2C bus setup ---
-//     // Owned here at board level rather than inside a driver, since both
-//     // HTU21D and BH1750FVI-TR sit on the same physical bus.
-//     i2c_init(I2C_PORT, I2C_BAUDRATE);
-//     gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
-//     gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
-//     // Not enabling internal pull-ups here - the schematic already has
-//     // external 4.7k pull-ups to 3v3 on both lines.
-
-//     // --- WS2812 LED chain setup ---
-//     PIO pio = pio0;
-//     uint sm = 0;
-//     uint offset = pio_add_program(pio, &ws2812_program);
-//     ws2812_program_init(pio, sm, offset, LED_PIN, 800000, false);
-//     LEDDriver leds(pio, sm);
-
-//     ///////////////////////////////////////////////////////////////////////
-//     // HTU21D DEMONSTRATION
-
-//     // --- HTU21D init test ---
-//     // First LED in the chain reports pass/fail: green if the sensor ACKs
-//     // and soft-resets successfully, red if init() fails (wiring/power/
-//     // address fault).
-//     HTU21D htu21d(I2C_PORT);
-//     bool htuOk = htu21d.init();
-//     leds.set(0, htuOk ? Colours::GREEN : Colours::RED);
-//     printf("HTU21D init: %s\n", htuOk ? "OK" : "FAILED");
-
-//     // --- BH1750 init test ---
-//     BH1750 bh1750(I2C_PORT);
-//     bool bh1750Ok = bh1750.init();
-//     printf("BH1750 init: %s\n", bh1750Ok ? "OK" : "FAILED");
+    HSV colour;
+    colour.hue = static_cast<uint16_t>(fraction * 120.0f);
+    colour.sat = 255;
+    colour.val = 255;
+    return colour;
+}
+}  // namespace
  
-//     leds.show();
-
-//     // --- Continuous readout for verifying actual values over PuTTY ---
-//     while (true) {
-//         if (htuOk) {
-//             float tempC = 0.0f;
-//             float humidityRH = 0.0f;
-//             bool tempOk = htu21d.readTemperature(tempC);
-//             bool humOk  = htu21d.readHumidity(humidityRH);
- 
-//             if (tempOk && humOk) {
-//                 printf("Temp: %.2f C   Humidity: %.2f %%RH\n", tempC, humidityRH);
-//             } else {
-//                 printf("HTU21D read failed\n");
-//             }
-//         }
- 
-//         if (bh1750Ok) {
-//             float lux = 0.0f;
-//             if (bh1750.readLux(lux)) {
-//                 printf("Light: %.1f lx\n", lux);
- 
-//                 // LED 1: arbitrary demo gradient, red (dark) -> green
-//                 // (bright). Not a real plant-appropriate-light judgement -
-//                 // that logic belongs in a higher-level layer later.
-//                 leds.set_hsv(1, luxToGradient(lux));
-//                 leds.show();
-//             } else {
-//                 printf("BH1750 read failed\n");
-//             }
-//         }
- 
-//     }
-//     ///////////////////////////////////////////////////////////////////////
-// }
-
 int main() {
     stdio_init_all();
+    sleep_ms(2000);  // let USB CDC enumerate before early printf()s
  
-    soil_moisture_init(); // Initialize the soil moisture sensor
+    // --- Shared I2C bus (external 4.7k pull-ups already on board) ---
+    i2c_init(I2C_PORT, I2C_BAUDRATE);
+    gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
  
-    // Calibrated using measured readings: dry = 3340, wet = 1230
-    soil_moisture_calibrate(SOIL_DRY_RAW_DEFAULT, SOIL_WET_RAW_DEFAULT);
+    // --- WS2812 LED chain ---
+    PIO pio = pio0;
+    uint sm = 0;
+    uint offset = pio_add_program(pio, &ws2812_program);
+    ws2812_program_init(pio, sm, offset, LED_PIN, 800000, false);
+    LEDDriver leds(pio, sm);
  
-    if (!tf015_init()) {
-        printf("SD card init failed - check wiring in TF-015.h\n");
+    // --- Sensor / peripheral init ---
+    HTU21D htu21d(I2C_PORT);
+    bool htuOk = htu21d.init();
+    leds.set(0, htuOk ? Colours::GREEN : Colours::RED);
+    printf("HTU21D init: %s\n", htuOk ? "OK" : "FAILED");
+ 
+    BH1750 bh1750(I2C_PORT);
+    bool bh1750Ok = bh1750.init();
+    printf("BH1750 init: %s\n", bh1750Ok ? "OK" : "FAILED");
+ 
+    soil_moisture_init();
+    soil_moisture_calibrate(SOIL_DRY_RAW_DEFAULT, SOIL_WET_RAW_DEFAULT);  // dry=3340, wet=1230
+ 
+    bool sdOk = tf015_init();
+    if (!sdOk) {
+        printf("SD card init failed\n");
+    } else {
+        tf015_log_line("raw,voltage_v,moisture_pct,temp_c,humidity_pct,lux"); // Add in headings for columns in csv file
     }
  
-    printf("Soil Moisture Sensor Test Starting...\n");
+    leds.show();
+    printf("Sensor logging starting...\n");
  
-    while(true) {
+    while (true) {
+        // Soil moisture
         uint16_t raw = soil_moisture_read_raw();
-        float voltage = soil_moisture_raw_to_voltage(raw);
-        float percentage = soil_moisture_raw_to_percentage(raw);
+        float moistVoltage = soil_moisture_raw_to_voltage(raw);
+        float moisturePct = soil_moisture_raw_to_percentage(raw);
+        printf("Raw: %u, Voltage: %.2f V, Moisture: %.2f%%\n", raw, moistVoltage, moisturePct);
  
-        printf("Raw: %u, Voltage: %.2f V, Moisture: %.2f%%\n", raw, voltage, percentage);
+        // Temperature / humidity
+        float tempC = 0.0f, humidityRH = 0.0f;
+        bool envOk = false;
+        if (htuOk) {
+            envOk = htu21d.readTemperature(tempC) && htu21d.readHumidity(humidityRH);
+            if (envOk) {
+                printf("Temp: %.2f C   Humidity: %.2f %%RH\n", tempC, humidityRH);
+            } else {
+                printf("HTU21D read failed\n");
+            }
+        }
  
-        char line[64];
-        snprintf(line, sizeof(line), "%u,%.2f,%.2f", raw, voltage, percentage);
-        tf015_log_line(line);
+        // Light
+        float lux = 0.0f;
+        bool luxOk = false;
+        if (bh1750Ok) {
+            luxOk = bh1750.readLux(lux);
+            if (luxOk) {
+                printf("Light: %.1f lx\n", lux);
+                leds.set_hsv(1, luxToGradient(lux));  // LED1: red(dark) -> green(bright)
+                leds.show();
+            } else {
+                printf("BH1750 read failed\n");
+            }
+        }
+ 
+        // Log this cycle's readings as one CSV line (-1.00 marks a sensor
+        // that failed/isn't present, so the column count stays consistent)
+        if (sdOk) {
+            char line[128];
+            snprintf(line, sizeof(line), "%u,%.2f,%.2f,%.2f,%.2f,%.1f",
+                      raw, moistVoltage, moisturePct,
+                      envOk ? tempC : -1.0f, envOk ? humidityRH : -1.0f,
+                      luxOk ? lux : -1.0f);
+            tf015_log_line(line);
+        }
  
         sleep_ms(SENSOR_READ_INTERVAL_MS);
     }

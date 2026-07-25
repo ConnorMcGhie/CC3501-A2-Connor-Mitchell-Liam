@@ -12,6 +12,7 @@
 #include "drivers/HTU21D/HTU21D.h"
 #include "drivers/BH1750FVI-TR/BH1750FVI-TR.h"
 #include "drivers/soil_moisture_breakout_board/soil_moisture_breakout_board.h"
+#include "drivers/TF-015/TF-015.h"
 
 // namespace {
 // // Arbitrary demo-only scale for the light gradient LED - not a real
@@ -115,22 +116,32 @@
 
 int main() {
     stdio_init_all();
-
+ 
     soil_moisture_init(); // Initialize the soil moisture sensor
-
+ 
     // Calibrated using measured readings: dry = 3340, wet = 1230
     soil_moisture_calibrate(SOIL_DRY_RAW_DEFAULT, SOIL_WET_RAW_DEFAULT);
-
+ 
+    if (!tf015_init()) {
+        printf("SD card init failed - check wiring in TF-015.h\n");
+    }
+ 
     printf("Soil Moisture Sensor Test Starting...\n");
-
+ 
     while(true) {
         uint16_t raw = soil_moisture_read_raw();
         float voltage = soil_moisture_raw_to_voltage(raw);
         float percentage = soil_moisture_raw_to_percentage(raw);
-
+ 
         printf("Raw: %u, Voltage: %.2f V, Moisture: %.2f%%\n", raw, voltage, percentage);
-
+ 
+        char line[64];
+        snprintf(line, sizeof(line), "%u,%.2f,%.2f", raw, voltage, percentage);
+        tf015_log_line(line);
+ 
         sleep_ms(SENSOR_READ_INTERVAL_MS);
     }
+ 
+    tf015_close();
     return 0;
 }

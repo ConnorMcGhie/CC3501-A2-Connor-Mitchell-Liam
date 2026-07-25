@@ -30,6 +30,6 @@
 #define SD_PIN_MISO 4
 #define SD_PIN_CS 5
 #define SD_PIN_CD 6 // Card Detect pin 
-#define SD_INIT_HZ (400 * 1000) // 400 kHz for initialization
 #define SD_OP_HZ (12 * 1000 * 1000) // 12 MHz for normal operation
-#define SD_LOG_START_BLOCK 20000 // Raw block number where logging starts
+#define SD_LOG_BASENAME "LOG" // Base name for log files on the SD card
+

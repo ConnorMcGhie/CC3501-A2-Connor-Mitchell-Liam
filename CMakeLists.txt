@@ -45,6 +45,7 @@ if(CrossCompiling)
     
     # Initialise the Raspberry Pi Pico SDK
     pico_sdk_init()
+    add_subdirectory(lib/FatFs_SPI build_fatfs)
 
     add_executable(CC3501_A2_CML)
     target_sources(CC3501_A2_CML 
@@ -87,6 +88,7 @@ if(CrossCompiling)
         hardware_clocks
         hardware_pwm
         hardware_adc
+        FatFs_SPI
     )
 
     pico_add_extra_outputs(CC3501_A2_CML)
@@ -106,7 +108,6 @@ else()
         src/drivers/logging/logging.cpp
         src/drivers/HTU21D/HTU21D.cpp
         src/drivers/BH1750FVI-TR/BH1750FVI-TR.cpp
-        src/drivers/TF-015/TF-015.cpp
         src/drivers/RN4871/RN4871.cpp
         src/drivers/soil_moisture_breakout_board/soil_moisture_breakout_board.cpp
         src/drivers/leds/leds.cpp

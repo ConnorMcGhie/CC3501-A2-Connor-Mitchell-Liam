@@ -33,3 +33,8 @@
 #define SD_OP_HZ (12 * 1000 * 1000) // 12 MHz for normal operation
 #define SD_LOG_BASENAME "LOG" // Base name for log files on the SD card
 
+// --- Bluetooth Configuration ---
+#define BLE_UART_ID uart1
+#define BLE_TX_PIN 8
+#define BLE_RX_PIN 9
+#define BLE_BAUD_RATE 115200

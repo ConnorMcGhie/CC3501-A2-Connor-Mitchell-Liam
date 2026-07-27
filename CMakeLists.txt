@@ -78,6 +78,7 @@ if(CrossCompiling)
     # Add the standard library to the build
     target_link_libraries(CC3501_A2_CML
         pico_stdlib
+        hardware_uart
         hardware_spi
         hardware_i2c
         hardware_dma

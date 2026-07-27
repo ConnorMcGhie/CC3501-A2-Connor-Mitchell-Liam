@@ -13,6 +13,7 @@
 #include "drivers/BH1750FVI-TR/BH1750FVI-TR.h"
 #include "drivers/soil_moisture_breakout_board/soil_moisture_breakout_board.h"
 #include "drivers/TF-015/TF-015.h"
+#include "drivers/RN4871/RN4871.h"
 
 namespace {
 // Demo-only lux->gradient scale (red=dark, green=bright) - not a real
@@ -68,6 +69,18 @@ int main() {
     } else {
         tf015_log_line("raw,voltage_v,moisture_pct,temp_c,humidity_pct,lux"); // Add in headings for columns in csv file
     }
+
+    // --- RN4871 Bluetooth Slave initialization ---
+    printf("\nConfiguring BLE Slave on UART channel %d (TX: GPIO %d, RX: GPIO %d) at %d baud...\n", 
+           (BLE_UART_ID == uart1 ? 1 : 0), BLE_TX_PIN, BLE_RX_PIN, BLE_BAUD_RATE);
+    RN4871Slave ble_slave(BLE_UART_ID, BLE_TX_PIN, BLE_RX_PIN, BLE_BAUD_RATE);
+    ble_slave.begin();
+
+    if (ble_slave.enter_command_mode()) {
+        ble_slave.setup_slave_mode("SuttoPicoSlave");
+    } else {
+        printf("Warning: BLE module failed link sync! Check physical pin cross-overs.\n");
+    }
  
     leds.show();
     printf("Sensor logging starting...\n");
@@ -117,6 +130,32 @@ int main() {
         }
  
         sleep_ms(SENSOR_READ_INTERVAL_MS);
+        
+        // --- Format and Transmit Telemetry Packet over Bluetooth ---
+        // Construct a clean, structured string package with terminal carriage returns
+        char ble_packet[128];
+        snprintf(ble_packet, sizeof(ble_packet), 
+                 "DATA: Moist=%.1f%%, Temp=%.1fC, Humid=%.1f%%, Light=%.1flux\r\n",
+                 moisturePct, 
+                 envOk ? tempC : -1.0f, 
+                 envOk ? humidityRH : -1.0f, 
+                 luxOk ? lux : -1.0f);
+        
+        // Transmit the string package through the active BLE data mode stream
+        ble_slave.send_string(ble_packet);
+        printf("Bluetooth telemetry packet dispatched to Master.\n");\
+
+        // Non-blocking sleep loop: dynamically monitors Bluetooth streaming buffer
+        // during your SENSOR_READ_INTERVAL_MS interval.
+        uint32_t elapsed_ms = 0;
+        while (elapsed_ms < SENSOR_READ_INTERVAL_MS) {
+            std::string incoming = ble_slave.read_response(10);
+            if (!incoming.empty()) {
+                printf("%s", incoming.c_str());
+            }
+            sleep_ms(10);
+            elapsed_ms += 10;
+        }
     }
  
     tf015_close();

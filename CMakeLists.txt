@@ -58,6 +58,7 @@ if(CrossCompiling)
         src/drivers/RN4871/RN4871.cpp
         src/drivers/soil_moisture_breakout_board/soil_moisture_breakout_board.cpp
         src/drivers/leds/leds.cpp
+        src/drivers/pump/pump.cpp
         
     )
     target_include_directories(CC3501_A2_CML
@@ -112,6 +113,7 @@ else()
         src/drivers/RN4871/RN4871.cpp
         src/drivers/soil_moisture_breakout_board/soil_moisture_breakout_board.cpp
         src/drivers/leds/leds.cpp
+        src/drivers/pump/pump.cpp
         tests/mocks/pico/stdlib.cpp
         tests/mocks/pico/time.cpp
         tests/mocks/hardware/gpio.cpp

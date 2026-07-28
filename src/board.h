@@ -38,3 +38,7 @@
 #define BLE_TX_PIN 8
 #define BLE_RX_PIN 9
 #define BLE_BAUD_RATE 115200
+
+// Water Pump Configuration
+#define PUMP_PWM_PIN 19
+#define PUMP_DIR_PIN 20

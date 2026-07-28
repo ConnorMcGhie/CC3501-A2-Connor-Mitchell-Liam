@@ -14,6 +14,7 @@
 #include "drivers/soil_moisture_breakout_board/soil_moisture_breakout_board.h"
 #include "drivers/TF-015/TF-015.h"
 #include "drivers/RN4871/RN4871.h"
+#include "drivers/pump/pump.h"
 
 namespace {
 // Demo-only lux->gradient scale (red=dark, green=bright) - not a real
@@ -161,3 +162,16 @@ int main() {
     tf015_close();
     return 0;
 }
+
+// Water Pump testing code
+// int main() {
+//     stdio_init_all();
+//     pump_init();
+ 
+//     while (true) {
+//         pump_on();
+//         sleep_ms(3000);
+//         pump_off();
+//         sleep_ms(3000);
+//     }
+// }

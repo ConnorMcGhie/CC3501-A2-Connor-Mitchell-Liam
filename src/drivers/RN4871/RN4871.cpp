@@ -89,9 +89,6 @@ bool RN4871Slave::setup_slave_mode(const std::string& device_name) {
     printf("2. Setting Identity Name to: %s\n", device_name.c_str());
     send_command("S-," + device_name, response);
 
-    printf("3. Binding Server Bitmap to Transparent Stream mode...\n");
-    send_command("SR,2000", response);
-
     printf("4. Hard Booting Module...\n");
     send_command("R,1", response);
     sleep_ms(600); 

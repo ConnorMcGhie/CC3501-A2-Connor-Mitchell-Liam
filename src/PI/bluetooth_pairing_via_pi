@@ -1,0 +1,269 @@
+// #include <iostream>
+// #include <string>
+// #include <fstream>
+// #include <fcntl.h>
+// #include <termios.h>
+// #include <unistd.h>
+// #include <cstring>
+// #include <sys/select.h>
+
+// // Wraps an RN4871 BLE module operating in UART central/master mode
+// class RN4871Master {
+// private:
+//     int serial_fd;            // fd for serial device, -1 when closed
+//     std::string device_path;  // e.g. "/dev/serial0"
+
+// public:
+//     RN4871Master(const std::string& port = "/dev/serial0") : serial_fd(-1), device_path(port) {}
+//     ~RN4871Master() { close_port(); } // RAII cleanup
+
+//     // Opens and configures the serial port (115200 8N1, raw mode)
+//     bool begin() {
+//         serial_fd = open(device_path.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
+//         if (serial_fd == -1) {
+//             std::cerr << "Error: Unable to open serial port " << device_path << std::endl;
+//             return false;
+//         }
+//         fcntl(serial_fd, F_SETFL, 0); // clear O_NDELAY now that port is open
+
+//         struct termios options;
+//         tcgetattr(serial_fd, &options);
+
+//         cfsetispeed(&options, B115200);
+//         cfsetospeed(&options, B115200);
+
+//         options.c_cflag |= (CLOCAL | CREAD); // ignore modem lines, enable receiver
+//         options.c_cflag &= ~PARENB;          // no parity
+//         options.c_cflag &= ~CSTOPB;          // 1 stop bit
+//         options.c_cflag &= ~CSIZE;
+//         options.c_cflag |= CS8;              // 8 data bits
+
+//         options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // raw input mode
+//         options.c_oflag &= ~OPOST;                          // no output post-processing
+
+//         options.c_cc[VMIN] = 0;  // don't block waiting for a minimum byte count
+//         options.c_cc[VTIME] = 1; // 0.1s inter-byte read timeout
+
+//         tcflush(serial_fd, TCIFLUSH); // discard stale input
+//         if (tcsetattr(serial_fd, TCSANOW, &options) != 0) {
+//             std::cerr << "Error: Failed to apply termios configurations." << std::endl;
+//             return false;
+//         }
+//         return true;
+//     }
+
+//     void close_port() {
+//         if (serial_fd != -1) {
+//             close(serial_fd);
+//             serial_fd = -1; // guard against double close
+//         }
+//     }
+
+//     bool send_string(const std::string& data) {
+//         if (serial_fd == -1) return false;
+//         ssize_t bytes_written = write(serial_fd, data.c_str(), data.length());
+//         return (bytes_written == static_cast<ssize_t>(data.length()));
+//     }
+
+//     // Reads until timeout_seconds passes with no new data
+//     std::string read_response(double timeout_seconds = 1.0) {
+//         std::string response = "";
+//         if (serial_fd == -1) return response;
+
+//         char buffer;
+//         fd_set set;
+//         struct timeval timeout;
+
+//         while (true) {
+//             FD_ZERO(&set);
+//             FD_SET(serial_fd, &set);
+
+//             timeout.tv_sec = static_cast<long>(timeout_seconds);
+//             timeout.tv_usec = static_cast<long>((timeout_seconds - timeout.tv_sec) * 1000000);
+
+//             int rv = select(serial_fd + 1, &set, NULL, NULL, &timeout);
+//             if (rv <= 0) break; // timed out or error, stop waiting
+
+//             std::memset(&buffer, 0, sizeof(buffer));
+//             ssize_t bytes_read = read(serial_fd, &buffer, sizeof(buffer));
+//             if (bytes_read > 0) {
+//                 response.append(&buffer, bytes_read);
+//                 timeout_seconds = 0.05; // shrink timeout once data is flowing
+//             } else {
+//                 break;
+//             }
+//         }
+//         return response;
+//     }
+
+//     // Sends "$$$" escape sequence and waits for the "CMD>" prompt
+//     bool enter_command_mode() {
+//         tcflush(serial_fd, TCIFLUSH);
+//         send_string("r,1\r\n");   // closes command mode if it's already open; response ignored
+//         read_response(0.3);      // drain/discard whatever the above triggers
+//         usleep(100000); // RN4871 needs a quiet period around "$$$"
+//         if (!send_string("$$$")) return false;
+//         usleep(200000);
+
+//         std::string resp = read_response(0.5);
+//         return (resp.find("CMD>") != std::string::npos);
+//     }
+
+//     // Sends one AT-style command and captures the response
+//     bool send_command(const std::string& cmd, std::string& out_response) {
+//         std::string full_cmd = cmd + "\r\n";
+//         tcflush(serial_fd, TCIFLUSH);
+//         if (!send_string(full_cmd)) return false;
+//         out_response = read_response(0.5);
+//         return true; // only reflects write success, not command acceptance
+//     }
+
+//     // Provisions the module as BLE central and reboots to apply settings
+//     bool configure_hardware() {
+//         std::string response;
+
+//         if (!send_command("SN,PicoMaster", response)) return false; // set device name (cosmetic)
+
+//         if (!send_command("SS,C0", response)) return false; // set feature mask (plain UART transparent mode)
+
+//         if (!send_command("GR,1", response)) return false; // set GAP role to central/master
+
+//         if (!send_command("R,1", response)) return false; // reboot to apply config
+
+//         usleep(1500000); // wait for module to finish rebooting
+
+//         if (!enter_command_mode()) { // re-sync after reboot
+//             std::cerr << "Error: Module did not respond after reboot." << std::endl;
+//             return false;
+//         }
+
+//         std::cout << "Hardware configured as master." << std::endl;
+//         return true;
+//     }
+
+//     // Attempt to connect to a peripheral (slave) by its MAC address.
+//     bool connect_to_slave(const std::string& mac) {
+//         std::string response;
+//         std::string cmd = "C,0," + mac;
+
+//         if (!send_command(cmd, response)) {
+//             std::cerr << "Error: Failed to send connect command." << std::endl;
+//             return false;
+//         }
+
+//         std::string full_response = response + read_response(2.0); // %CONNECT% may arrive late
+
+//         // module printed "Trying" but hasn't confirmed yet, keep polling a bit longer
+//         int extra_wait_attempts = 0;
+//         while (full_response.find("Trying") != std::string::npos
+//                && full_response.find("%CONNECT,0,") == std::string::npos
+//                && extra_wait_attempts < 5) {
+//             full_response += read_response(1.0);
+//             extra_wait_attempts++;
+//         }
+
+//         bool got_connect = full_response.find("%CONNECT,0," + mac) != std::string::npos
+//                             || full_response.find("%CONNECT,0,") != std::string::npos; // loose fallback match
+//         bool stream_open  = full_response.find("%STREAM_OPEN%") != std::string::npos;
+
+//         if (got_connect) {
+//             std::cout << "Connected to " << mac
+//                        << (stream_open ? " (stream open)" : " (stream not yet open)")
+//                        << std::endl;
+//             return true;
+//         }
+
+//         std::cerr << "Failed to connect to " << mac << ". Response: "
+//                    << full_response << std::endl;
+//         return false;
+//     }
+// };
+
+// int main(int argc, char* argv[]) {
+//     if (argc < 2) {
+//         std::cerr << "Usage: " << argv[0] << " <SLAVE_MAC_ADDRESS>" << std::endl;
+//         std::cerr << "Example: " << argv[0] << " 4A2B3C4D5E6F" << std::endl;
+//         return 1;
+//     }
+
+//     std::string slave_mac = argv[1];
+//     if (slave_mac.length() != 12) {
+//         std::cerr << "Error: MAC address must be exactly 12 characters long." << std::endl;
+//         return 1;
+//     }
+
+//     std::cout << "=== Auto-Configuring RN4871 MASTER with Local Logging ===" << std::endl;
+//     RN4871Master ble_master("/dev/serial0");
+
+//     if (!ble_master.begin()) return 1;
+
+//     if (!ble_master.enter_command_mode()) {
+//         std::cerr << "Failed to sync link. Check if port is locked by another script." << std::endl;
+//         return 1;
+//     }
+
+//     if (!ble_master.configure_hardware()) return 1;
+
+//     std::string filename = "pico_telemetry_log.csv";
+//     std::ofstream log_file;
+
+//     log_file.open(filename, std::ios::trunc); // wipe any previous contents on startup
+//     if (log_file.is_open()) {
+//         log_file << "Raw_String_Data\n"; // always write a fresh header
+//         log_file.close();
+//         std::cout << "Local system log target reset: " << filename << std::endl;
+//     } else {
+//         std::cerr << "Error: Cannot initialize local telemetry file write buffers." << std::endl;
+//     }
+
+//     bool connected = false;
+//     std::string internal_buffer = ""; // accumulates partial lines across reads
+
+//     while (true) {
+//         if (!connected) {
+//             if (ble_master.connect_to_slave(slave_mac)) {
+//                 connected = true;
+//             } else {
+//                 std::cout << "Retrying connection in 5 seconds..." << std::endl;
+//                 sleep(5);
+//                 continue;
+//             }
+//         }
+
+//         std::string incoming = ble_master.read_response(0.1);
+
+//         if (!incoming.empty()) {
+//             std::cout << incoming << std::flush;
+//             internal_buffer += incoming;
+
+//             if (internal_buffer.find("%DISCONNECT%") != std::string::npos) {
+//                 std::cout << "\n[Alert]: Connection dropped by remote hardware host." << std::endl;
+//                 connected = false;
+//                 internal_buffer.clear();
+//                 continue;
+//             }
+
+//             size_t newline_pos;
+//             while ((newline_pos = internal_buffer.find("\n")) != std::string::npos) {
+//                 std::string current_line = internal_buffer.substr(0, newline_pos);
+//                 internal_buffer.erase(0, newline_pos + 1);
+
+//                 if (!current_line.empty() && current_line.back() == '\r') {
+//                     current_line.pop_back(); // strip trailing \r if present
+//                 }
+
+//                 // skip empty lines and RN4871 status events (which start with %)
+//                 if (!current_line.empty() && current_line.front() != '%') {
+//                     log_file.open(filename, std::ios::app); // reopen per line for durability
+//                     if (log_file.is_open()) {
+//                         log_file << current_line << "\n";
+//                         log_file.close();
+//                     }
+//                 }
+//             }
+//         }
+//         usleep(10000); // avoid busy-looping when idle
+//     }
+
+//     return 0; // unreachable
+// }

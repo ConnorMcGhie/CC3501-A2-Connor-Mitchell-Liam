@@ -42,3 +42,31 @@
 // Water Pump Configuration
 #define PUMP_PWM_PIN 19
 #define PUMP_DIR_PIN 20
+
+// --- Plant health alert thresholds ---
+// These are just placeholder starting values - adjust as necessary for
+// the specific plant being monitored. Any reading outside its [MIN, MAX]
+// range will make that sensor's LED flash red.
+#define RH_MIN_PERCENT            30.0f    // Relative humidity minimum (%RH)
+#define RH_MAX_PERCENT            70.0f    // Relative humidity maximum (%RH)
+ 
+#define AMBIENT_LIGHT_MIN_LUX     200.0f   // Ambient light minimum (lux) - for logging only, not tied to an LED
+#define AMBIENT_LIGHT_MAX_LUX     10000.0f // Ambient light maximum (lux) - for logging only, not tied to an LED
+ 
+#define TEMP_MIN_C                15.0f    // Temperature minimum (deg C)
+#define TEMP_MAX_C                30.0f    // Temperature maximum (deg C)
+ 
+#define SOIL_MOISTURE_MIN_PERCENT 20.0f    // Soil moisture minimum (%)
+#define SOIL_MOISTURE_MAX_PERCENT 80.0f    // Soil moisture maximum (%)
+ 
+// --- Alert LED assignment (positions within the WS2812 chain) ---
+// Only 3 LEDs are wired up for plant alerts. Light is reported as a
+// lux/day integral rather than a live reading, so it doesn't get an
+// alert LED - RH, temp, and soil moisture do.
+// LEDs sit off by default and flash red individually when their sensor's
+// reading strays outside the thresholds above.
+#define LED_HUMIDITY_INDEX  0
+#define LED_TEMP_INDEX      1
+#define LED_MOISTURE_INDEX  2
+ 
+#define ALERT_FLASH_INTERVAL_MS 300 // How long each red on/off flash phase lasts

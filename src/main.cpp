@@ -17,21 +17,24 @@
 #include "drivers/pump/pump.h"
 
 namespace {
-// Demo-only lux->gradient scale (red=dark, green=bright) - not a real
-// "enough light for a plant" threshold, just a visible sweep for testing.
-constexpr float kDemoMinLux = 0.0f;
-constexpr float kDemoMaxLux = 1000.0f;
+// Each alert LED sits off until its sensor's reading strays outside the
+// healthy range configured in board.h, at which point it flashes red to
+// catch the eye. `phase_ms` is a free-running millisecond counter shared
+// by all LEDs so their flashes stay in sync.
+// Returns true if the LED's staged colour actually changed, so the caller
+// only needs to call leds.show() when something is different.
+bool updateAlertLED(LEDDriver& leds, uint8_t index, bool alert, uint32_t phase_ms) {
+    Colour before = leds.get(index);
  
-HSV luxToGradient(float lux) {
-    float fraction = (lux - kDemoMinLux) / (kDemoMaxLux - kDemoMinLux);
-    if (fraction < 0.0f) fraction = 0.0f;
-    if (fraction > 1.0f) fraction = 1.0f;
+    if (!alert) {
+        leds.set(index, Colours::OFF);
+    } else {
+        bool flashOn = (phase_ms % (2 * ALERT_FLASH_INTERVAL_MS)) < ALERT_FLASH_INTERVAL_MS;
+        leds.set(index, flashOn ? Colours::RED : Colours::OFF);
+    }
  
-    HSV colour;
-    colour.hue = static_cast<uint16_t>(fraction * 120.0f);
-    colour.sat = 255;
-    colour.val = 255;
-    return colour;
+    Colour after = leds.get(index);
+    return before.red != after.red || before.green != after.green || before.blue != after.blue;
 }
 }  // namespace
  
@@ -50,11 +53,12 @@ int main() {
     uint offset = pio_add_program(pio, &ws2812_program);
     ws2812_program_init(pio, sm, offset, LED_PIN, 800000, false);
     LEDDriver leds(pio, sm);
+    leds.clear();
+    leds.show();
  
     // --- Sensor / peripheral init ---
     HTU21D htu21d(I2C_PORT);
     bool htuOk = htu21d.init();
-    leds.set(0, htuOk ? Colours::GREEN : Colours::RED);
     printf("HTU21D init: %s\n", htuOk ? "OK" : "FAILED");
  
     BH1750 bh1750(I2C_PORT);
@@ -112,12 +116,23 @@ int main() {
             luxOk = bh1750.readLux(lux);
             if (luxOk) {
                 printf("Light: %.1f lx\n", lux);
-                leds.set_hsv(1, luxToGradient(lux));  // LED1: red(dark) -> green(bright)
-                leds.show();
             } else {
                 printf("BH1750 read failed\n");
             }
         }
+
+       // --- Determine if readings are outside their healthy range ---
+        // An alert is only ever raised for a reading we actually trust this
+        // cycle (i.e. the corresponding sensor read succeeded).
+        bool humidityAlert = envOk && (humidityRH < RH_MIN_PERCENT || humidityRH > RH_MAX_PERCENT);
+        bool tempAlert     = envOk && (tempC < TEMP_MIN_C || tempC > TEMP_MAX_C);
+        bool lightAlert    = luxOk && (lux < AMBIENT_LIGHT_MIN_LUX || lux > AMBIENT_LIGHT_MAX_LUX);
+        bool moistureAlert = moisturePct < SOIL_MOISTURE_MIN_PERCENT || moisturePct > SOIL_MOISTURE_MAX_PERCENT;
+ 
+        if (humidityAlert) printf("ALERT: Humidity %.2f %%RH outside [%.1f, %.1f]\n", humidityRH, RH_MIN_PERCENT, RH_MAX_PERCENT);
+        if (tempAlert)     printf("ALERT: Temp %.2f C outside [%.1f, %.1f]\n", tempC, TEMP_MIN_C, TEMP_MAX_C);
+        if (lightAlert)    printf("ALERT: Light %.1f lx outside [%.1f, %.1f]\n", lux, AMBIENT_LIGHT_MIN_LUX, AMBIENT_LIGHT_MAX_LUX);
+        if (moistureAlert) printf("ALERT: Moisture %.2f%% outside [%.1f, %.1f]\n", moisturePct, SOIL_MOISTURE_MIN_PERCENT, SOIL_MOISTURE_MAX_PERCENT); 
  
         // Log this cycle's readings as one CSV line (-1.00 marks a sensor
         // that failed/isn't present, so the column count stays consistent)
@@ -154,6 +169,20 @@ int main() {
             if (!incoming.empty()) {
                 printf("%s", incoming.c_str());
             }
+
+            // Drive the red alert flashes off this same 10ms tick so the
+            // LEDs blink smoothly without blocking the BLE polling above.
+            // Light has no LED of its own - it's reported as a lux/day
+            // integral rather than a live reading, so it isn't a good fit
+            // for an instantaneous flash alert.
+            bool changed = false;
+            changed |= updateAlertLED(leds, LED_HUMIDITY_INDEX, humidityAlert, elapsed_ms);
+            changed |= updateAlertLED(leds, LED_TEMP_INDEX,     tempAlert,     elapsed_ms);
+            changed |= updateAlertLED(leds, LED_MOISTURE_INDEX, moistureAlert, elapsed_ms);
+            if (changed) {
+                leds.show();
+            }
+
             sleep_ms(10);
             elapsed_ms += 10;
         }

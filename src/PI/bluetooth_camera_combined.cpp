@@ -48,8 +48,8 @@
 //     int intervalSeconds = 10;      // how often to sample/log in headless mode
 //     int baselineSamples = 3;        // number of initial samples averaged into the baseline
 //     double alertDropFraction = 0.70; // alert if area falls below this fraction of baseline
-//     std::string alertCmd;            // optional external script/command to run on alert
-//     std::string bleMac;              // Pico peripheral MAC address; empty = BLE sensor bridge disabled
+//     std::string alertCmd = "../scripts/send_alert_email.sh"; // optional external script/command to run on alert
+//     std::string bleMac = "44b7d02646c9"; // Pico peripheral MAC address; empty = BLE sensor bridge disabled
 //     std::string blePort = "/dev/serial0"; // serial device the RN4871 is attached to
 //     int bleStaleSeconds = 0;         // 0 = auto (2x --interval); how old a reading can be before it's logged blank
 // };
@@ -525,7 +525,6 @@
 //         bleThread = std::thread(bleReaderThread, opts.bleMac, opts.blePort);
 //     }
 
-    
 //     while (!g_stopRequested) {
 //         if (!cap.read(frame) || frame.empty()) {
 //             std::cerr << "[" << timestampIso() << "] Warning: could not read a frame, retrying.\n";

@@ -44,6 +44,9 @@
 #define PUMP_DIR_PIN 20
 #define PUMP_RUN_MS 1000
 
+// --- Switch Button Configuration ---
+#define SWITCH_BUTTON_PIN 15
+
 // --- Plant health alert thresholds ---
 // These are just placeholder starting values - adjust as necessary for
 // the specific plant being monitored. Any reading outside its [MIN, MAX]

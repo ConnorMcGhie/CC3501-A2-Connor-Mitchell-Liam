@@ -36,6 +36,31 @@ bool updateAlertLED(LEDDriver& leds, uint8_t index, bool alert, uint32_t phase_m
     Colour after = leds.get(index);
     return before.red != after.red || before.green != after.green || before.blue != after.blue;
 }
+
+// --- Pump safety toggle button ---
+// Pressing SWITCH_BUTTON_PIN toggles pump watering on/off as a manual
+// safety lockout. Debounced, toggles on the press (rising) edge only, so
+// holding the button down doesn't repeatedly flip the state.
+bool pumpSafetyEnabled = true;      // true = pump allowed to run
+bool lastButtonRaw = false;
+uint32_t lastButtonChangeMs = 0;
+constexpr uint32_t BUTTON_DEBOUNCE_MS = 50;
+
+// Call frequently (e.g. every 10ms tick) so presses are caught promptly.
+void pollSafetyButton() {
+    uint32_t now = to_ms_since_boot(get_absolute_time());
+    bool pressed = gpio_get(SWITCH_BUTTON_PIN);
+
+    if (pressed != lastButtonRaw && (now - lastButtonChangeMs) > BUTTON_DEBOUNCE_MS) {
+        lastButtonChangeMs = now;
+        lastButtonRaw = pressed;
+        if (pressed) {  // toggle on press, not release
+            pumpSafetyEnabled = !pumpSafetyEnabled;
+            printf("Pump safety %s\n",
+                   pumpSafetyEnabled ? "ENABLED - pump may run" : "DISABLED - pump locked out");
+        }
+    }
+}
 }  // namespace
  
 int main() {
@@ -88,6 +113,11 @@ int main() {
     } else {
         printf("Warning: BLE module failed link sync! Check physical pin cross-overs.\n");
     }
+
+    // --- Button Setup ---
+    gpio_init(SWITCH_BUTTON_PIN);
+    gpio_set_dir(SWITCH_BUTTON_PIN, GPIO_IN);
+    gpio_pull_down(SWITCH_BUTTON_PIN);
  
     leds.show();
     printf("Sensor logging starting...\n");
@@ -104,12 +134,14 @@ int main() {
         // normal read cycle to re-check the level rather than dosing in one
         // long continuous run.
         bool needsWater = moisturePct < SOIL_MOISTURE_MIN_PERCENT;
-        if (needsWater) {
+        if (needsWater && pumpSafetyEnabled) {
             printf("Soil moisture %.2f%% below minimum %.1f%% - running pump for %dms\n",
                    moisturePct, SOIL_MOISTURE_MIN_PERCENT, PUMP_RUN_MS);
             pump_on();
             sleep_ms(PUMP_RUN_MS);
             pump_off();
+        } else if (needsWater && !pumpSafetyEnabled) {
+            printf("Soil moisture low but pump is safety-disabled - skipping watering\n");
         }
  
         // Temperature / humidity
@@ -184,6 +216,9 @@ int main() {
             if (!incoming.empty()) {
                 printf("%s", incoming.c_str());
             }
+
+            // Poll the pump safety toggle button on this same 10ms tick.
+            pollSafetyButton();
 
             // Drive the red alert flashes off this same 10ms tick so the
             // LEDs blink smoothly without blocking the BLE polling above.

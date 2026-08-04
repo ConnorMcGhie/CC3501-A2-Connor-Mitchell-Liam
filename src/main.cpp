@@ -67,6 +67,8 @@ int main() {
  
     soil_moisture_init();
     soil_moisture_calibrate(SOIL_DRY_RAW_DEFAULT, SOIL_WET_RAW_DEFAULT);  // dry=3340, wet=1230
+
+    pump_init();
  
     bool sdOk = tf015_init();
     if (!sdOk) {
@@ -96,6 +98,19 @@ int main() {
         float moistVoltage = soil_moisture_raw_to_voltage(raw);
         float moisturePct = soil_moisture_raw_to_percentage(raw);
         printf("Raw: %u, Voltage: %.2f V, Moisture: %.2f%%\n", raw, moistVoltage, moisturePct);
+
+        // Water the plant if soil moisture has dropped below the configured
+        // minimum. Pump runs briefly, then the loop continues on to its next
+        // normal read cycle to re-check the level rather than dosing in one
+        // long continuous run.
+        bool needsWater = moisturePct < SOIL_MOISTURE_MIN_PERCENT;
+        if (needsWater) {
+            printf("Soil moisture %.2f%% below minimum %.1f%% - running pump for %dms\n",
+                   moisturePct, SOIL_MOISTURE_MIN_PERCENT, PUMP_RUN_MS);
+            pump_on();
+            sleep_ms(PUMP_RUN_MS);
+            pump_off();
+        }
  
         // Temperature / humidity
         float tempC = 0.0f, humidityRH = 0.0f;
@@ -191,16 +206,3 @@ int main() {
     tf015_close();
     return 0;
 }
-
-// Water Pump testing code
-// int main() {
-//     stdio_init_all();
-//     pump_init();
- 
-//     while (true) {
-//         pump_on();
-//         sleep_ms(3000);
-//         pump_off();
-//         sleep_ms(3000);
-//     }
-// }

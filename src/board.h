@@ -42,6 +42,7 @@
 // Water Pump Configuration
 #define PUMP_PWM_PIN 19
 #define PUMP_DIR_PIN 20
+#define PUMP_RUN_MS 1000
 
 // --- Plant health alert thresholds ---
 // These are just placeholder starting values - adjust as necessary for

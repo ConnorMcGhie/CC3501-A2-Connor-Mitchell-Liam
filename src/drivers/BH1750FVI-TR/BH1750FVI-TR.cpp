@@ -17,8 +17,8 @@ BH1750::BH1750(i2c_inst_t* i2c, uint8_t address)
 // takes bare opcodes with no register/data bytes
 bool BH1750::writeCommand(Command cmd) {
     uint8_t cmdByte = static_cast<uint8_t>(cmd);
-    int written = i2c_write_blocking(i2c_, address_, &cmdByte, 1, false);
-    return written == 1;
+    int byteWritten = i2c_write_blocking(i2c_, address_, &cmdByte, 1, false);
+    return byteWritten == 1;
 }
 
 // Powers on, then resets the illuminance data register. Reset must be
@@ -44,8 +44,8 @@ bool BH1750::readLux(float& luxOut) {
     sleep_ms(kMeasurementDelayMs);
 
     uint8_t buf[2] = {0};
-    int read = i2c_read_blocking(i2c_, address_, buf, 2, false);
-    if (read != 2) {
+    int bytesRead = i2c_read_blocking(i2c_, address_, buf, 2, false);
+    if (bytesRead != 2) {
         return false;
     }
 

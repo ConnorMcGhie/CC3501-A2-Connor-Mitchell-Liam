@@ -36,7 +36,6 @@ private:
     // Opcodes from the BH1750FVI datasheet's instruction set. Only the
     // subset this driver currently uses is listed.
     enum class Command : uint8_t {
-        kPowerDown        = 0x00,
         kPowerOn          = 0x01,
         kReset            = 0x07,  // only valid after Power On
         kOneTimeHRes      = 0x20,  // 1 lx resolution, typ. 120ms, max 180ms

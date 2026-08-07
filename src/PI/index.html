@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plant Sensor Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+    :root {
+        --forest: #1B5E20;
+        --forest-dark: #123c15;
+        --medium-green: #43A047;
+        --emerald: #2E7D32;
+        --bg: #F4F7F5;
+        --card: #ffffff;
+        --text: #243126;
+        --text-muted: #62786a;
+        --border: #e3e9e4;
+        --radius-lg: 18px;
+        --radius-md: 14px;
+        --radius-sm: 10px;
+        --shadow-sm: 0 1px 2px rgba(18, 43, 21, 0.06), 0 1px 1px rgba(18, 43, 21, 0.04);
+        --shadow-md: 0 6px 16px rgba(18, 43, 21, 0.08), 0 2px 6px rgba(18, 43, 21, 0.05);
+        --shadow-lg: 0 16px 40px rgba(18, 43, 21, 0.14), 0 4px 12px rgba(18, 43, 21, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        font-family: 'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif;
+        background:
+            radial-gradient(1200px 500px at 100% -10%, rgba(67, 160, 71, 0.08), transparent),
+            var(--bg);
+        margin: 0;
+        padding: 28px;
+        color: var(--text);
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+        max-width: 1280px;
+        margin: 0 auto;
+    }
+
+    /* ---------- Hero header ---------- */
+    .hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, var(--forest) 0%, var(--emerald) 55%, var(--medium-green) 100%);
+        border-radius: var(--radius-lg);
+        padding: 34px 36px;
+        box-shadow: var(--shadow-lg);
+        color: #eafaee;
+        margin-bottom: 24px;
+    }
+    .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+            radial-gradient(circle at 85% 20%, rgba(255,255,255,0.10) 0, transparent 45%),
+            radial-gradient(circle at 15% 120%, rgba(255,255,255,0.08) 0, transparent 50%);
+        pointer-events: none;
+    }
+    .hero-top {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .hero h1 {
+        margin: 0 0 6px 0;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+    }
+    .hero .subtitle {
+        margin: 0;
+        font-size: 14.5px;
+        font-weight: 500;
+        color: rgba(234, 250, 238, 0.85);
+    }
+    .hero .team {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        padding: 7px 14px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        backdrop-filter: blur(6px);
+        width: fit-content;
+    }
+    .live-pill {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px 8px 12px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        backdrop-filter: blur(6px);
+        font-size: 12.5px;
+        font-weight: 600;
+        white-space: normal;
+        max-width: 340px;
+    }
+    .live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #7CFC9A;
+        box-shadow: 0 0 0 0 rgba(124, 252, 154, 0.7);
+        animation: pulse 2s infinite;
+        flex-shrink: 0;
+    }
+    @keyframes pulse {
+        0%   { box-shadow: 0 0 0 0 rgba(124, 252, 154, 0.55); }
+        70%  { box-shadow: 0 0 0 8px rgba(124, 252, 154, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(124, 252, 154, 0); }
+    }
+
+    #status { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+    /* ---------- Generic card ---------- */
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 18px;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow 0.25s ease, transform 0.25s ease;
+    }
+
+    /* ---------- Snapshot section ---------- */
+    #snapshot-card {
+        margin-bottom: 24px;
+        padding: 22px;
+    }
+    #snapshot-card h2 {
+        margin: 0 0 2px 0;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+    }
+    #snapshot-caption {
+        color: var(--text-muted);
+        font-size: 13px;
+        margin: 0 0 16px 0;
+        font-weight: 500;
+    }
+
+    .snapshot-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    #snapshot-select {
+        flex: 1;
+        appearance: none;
+        -webkit-appearance: none;
+        background: #f6f9f6 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%2343A047" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>') no-repeat right 14px center;
+        background-size: 13px;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 10px 38px 10px 14px;
+        font-family: inherit;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--text);
+        cursor: pointer;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    #snapshot-select:hover { border-color: var(--medium-green); }
+    #snapshot-select:focus {
+        outline: none;
+        border-color: var(--medium-green);
+        box-shadow: 0 0 0 3px rgba(67, 160, 71, 0.15);
+    }
+
+    #snapshot-img {
+        max-width: 100%;
+        max-height: 420px;
+        width: 100%;
+        object-fit: contain;
+        display: block;
+        border-radius: var(--radius-md);
+        background: #eef3ee;
+        border: 1px solid var(--border);
+    }
+    #snapshot-fallback {
+        color: var(--text-muted);
+        font-size: 13.5px;
+        font-weight: 500;
+        padding: 56px 24px;
+        text-align: center;
+        background: repeating-linear-gradient(135deg, #eef3ee, #eef3ee 10px, #eaf0ea 10px, #eaf0ea 20px);
+        border-radius: var(--radius-md);
+        border: 1.5px dashed #c9d8cc;
+        display: none;
+    }
+    #snapshot-fallback::before {
+        content: "🌱";
+        display: block;
+        font-size: 26px;
+        margin-bottom: 8px;
+    }
+
+    /* ---------- Charts grid ---------- */
+    #charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+        gap: 18px;
+    }
+    .chart-card {
+        padding: 20px 20px 16px 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    .chart-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-3px);
+    }
+    .chart-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--forest), var(--medium-green));
+        opacity: 0.9;
+    }
+    .chart-card .metric-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .chart-card h3 {
+        margin: 0 0 6px 0;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+    }
+    .chart-card .metric-icon {
+        font-size: 18px;
+        line-height: 1;
+        opacity: 0.85;
+    }
+    .chart-card .latest-value {
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0 0 14px 0;
+        color: var(--forest-dark);
+        font-variant-numeric: tabular-nums;
+    }
+    .chart-card .chart-wrap { position: relative; height: 130px; }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 640px) {
+        body { padding: 16px; }
+        .hero { padding: 24px 20px; }
+        .hero h1 { font-size: 22px; }
+        #charts-grid { grid-template-columns: 1fr; }
+        .live-pill { max-width: 100%; }
+    }
+</style>
+</head>
+<body>
+<div class="page">
+
+    <header class="hero">
+        <div class="hero-top">
+            <div>
+                <h1>🌿 Plant Monitoring System</h1>
+                <p class="subtitle">Real-Time Environmental Monitoring Dashboard</p>
+                <div class="team">👥 Connor &nbsp;•&nbsp; Mitchell &nbsp;•&nbsp; Liam</div>
+            </div>
+            <div class="live-pill"><span class="live-dot"></span><span id="status">Loading...</span></div>
+        </div>
+    </header>
+
+    <div id="snapshot-card" class="card">
+        <h2>📷 Snapshot Viewer</h2>
+        <p id="snapshot-caption">Browse captured images from the plant camera</p>
+        <div class="snapshot-controls">
+            <select id="snapshot-select"></select>
+        </div>
+        <img id="snapshot-img" alt="Selected plant snapshot">
+        <div id="snapshot-fallback">No snapshots yet</div>
+    </div>
+
+    <div id="charts-grid"></div>
+
+</div>
+
+<script>
+// --- EDIT THESE if your file/folder names differ ---
+const CSV_FILENAME = 'live_data.csv';
+const SNAPSHOTS_DIR = 'snapshots/';
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
+const MAX_CHART_ROWS = 60;
+const DATA_REFRESH_MS = 2000;
+const SNAPSHOT_LIST_REFRESH_MS = 5000;
+
+// Columns that shouldn't get their own graph (not meaningful as a line chart).
+const EXCLUDED_COLUMNS = ['centroid_x', 'centroid_y', 'timestamp', 'snapshot_file'];
+
+let followLatest = true;  // false once the user manually picks an older snapshot
+
+const charts = {};  // column name -> Chart instance
+const colours = ['#2e7d32', '#1565c0', '#e65100', '#6a1b9a', '#c62828', '#00838f', '#4527a0'];
+
+// Purely cosmetic: pick a small icon for a metric card based on its column name.
+// Does not affect data, parsing, or values in any way.
+function iconFor(name) {
+    const n = name.toLowerCase();
+    if (n.includes('temp')) return '🌡️';
+    if (n.includes('humid')) return '💧';
+    if (n.includes('soil') || n.includes('moist')) return '🌱';
+    if (n.includes('light') || n.includes('lux')) return '☀️';
+    if (n.includes('battery') || n.includes('volt')) return '🔋';
+    if (n.includes('press')) return '📈';
+    return '📊';
+}
+
+function parseCsv(text) {
+    const lines = text.trim().split('\n').filter(l => l.length > 0);
+    const header = lines[0].split(',').map(s => s.trim());
+    const rows = lines.slice(1).map(l => l.split(',').map(s => s.trim()));
+    return { header, rows };
+}
+
+function ensureChartsExist(header) {
+    const grid = document.getElementById('charts-grid');
+    header.forEach((name, col) => {
+        if (EXCLUDED_COLUMNS.includes(name)) return;
+        if (charts[name]) return;  // already built
+
+        const card = document.createElement('div');
+        card.className = 'card chart-card';
+        card.innerHTML = `
+            <div class="metric-head">
+                <h3>${name}</h3>
+                <span class="metric-icon">${iconFor(name)}</span>
+            </div>
+            <p class="latest-value" id="latest-${col}">-</p>
+            <div class="chart-wrap"><canvas id="chart-${col}"></canvas></div>
+        `;
+        grid.appendChild(card);
+
+        const ctx = document.getElementById(`chart-${col}`).getContext('2d');
+        charts[name] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    borderColor: colours[col % colours.length],
+                    backgroundColor: colours[col % colours.length] + '1a',
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: colours[col % colours.length],
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 2,
+                    tension: 0.4,
+                    fill: true,
+                }],
+            },
+            options: {
+                animation: false,
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'nearest', intersect: false },
+                scales: {
+                    x: { display: false },
+                    y: {
+                        grid: { color: 'rgba(36, 49, 38, 0.06)', drawTicks: false },
+                        border: { display: false },
+                        ticks: { color: '#8ba193', font: { size: 10, family: 'Inter' }, padding: 6 },
+                    },
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1B5E20',
+                        titleFont: { family: 'Inter', size: 11, weight: '600' },
+                        bodyFont: { family: 'JetBrains Mono', size: 12, weight: '600' },
+                        padding: 10,
+                        cornerRadius: 8,
+                        displayColors: false,
+                        caretSize: 5,
+                    },
+                },
+            },
+        });
+    });
+}
+
+function updateCharts(header, rows) {
+    const chartRows = rows.slice(-MAX_CHART_ROWS);
+    const labels = chartRows.map((_, i) => i);
+
+    header.forEach((name, col) => {
+        if (EXCLUDED_COLUMNS.includes(name)) return;
+        const values = chartRows.map(r => parseFloat(r[col]));
+        const chart = charts[name];
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = values;
+        chart.update('none');
+
+        const latest = values.length ? values[values.length - 1] : NaN;
+        const el = document.getElementById(`latest-${col}`);
+        if (el) el.textContent = isNaN(latest) ? '-' : latest.toFixed(2);
+    });
+}
+
+async function refreshData() {
+    try {
+        const res = await fetch(CSV_FILENAME + '?t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) throw new Error('File not found: ' + CSV_FILENAME);
+        const text = await res.text();
+        const { header, rows } = parseCsv(text);
+
+        ensureChartsExist(header);
+        updateCharts(header, rows);
+
+        document.getElementById('status').textContent =
+            `Reading ${CSV_FILENAME} (${rows.length} rows) - last updated ${new Date().toLocaleTimeString()}`;
+    } catch (e) {
+        document.getElementById('status').textContent = 'Error: ' + e.message;
+    }
+}
+
+function showSnapshot(filename) {
+    const img = document.getElementById('snapshot-img');
+    const fallback = document.getElementById('snapshot-fallback');
+
+    if (!filename) {
+        img.style.display = 'none';
+        fallback.style.display = 'block';
+        return;
+    }
+    img.onload = () => { img.style.display = 'block'; fallback.style.display = 'none'; };
+    img.onerror = () => { img.style.display = 'none'; fallback.style.display = 'block'; };
+    img.src = SNAPSHOTS_DIR + filename + '?t=' + Date.now();  // cache-bust
+}
+
+async function refreshSnapshotList() {
+    try {
+        const res = await fetch(SNAPSHOTS_DIR + '?t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) throw new Error('Cannot list ' + SNAPSHOTS_DIR);
+        const html = await res.text();
+
+        // Parse the directory listing http.server auto-generates and pull
+        // out every filename that looks like an image.
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const files = Array.from(doc.querySelectorAll('a'))
+            .map(a => decodeURIComponent(a.getAttribute('href')))
+            .filter(name => IMAGE_EXTENSIONS.some(ext => name.toLowerCase().endsWith(ext)))
+            .sort();  // relies on sortable filenames, e.g. snapshot_20260804_143000.jpg
+
+        const select = document.getElementById('snapshot-select');
+        const previousValue = select.value;
+
+        select.innerHTML = '';
+        files.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        });
+
+        if (!files.length) {
+            showSnapshot(null);
+            return;
+        }
+
+        if (followLatest || !files.includes(previousValue)) {
+            select.value = files[files.length - 1];  // newest, since names sort chronologically
+        } else {
+            select.value = previousValue;  // keep whatever the user was looking at
+        }
+        showSnapshot(select.value);
+    } catch (e) {
+        showSnapshot(null);
+    }
+}
+
+document.getElementById('snapshot-select').addEventListener('change', (e) => {
+    followLatest = false;  // user is now browsing manually; stop auto-jumping to newest
+    showSnapshot(e.target.value);
+});
+
+refreshData();
+refreshSnapshotList();
+setInterval(refreshData, DATA_REFRESH_MS);
+setInterval(refreshSnapshotList, SNAPSHOT_LIST_REFRESH_MS);
+</script>
+</body>
+</html>
